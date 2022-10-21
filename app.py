@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request, redirect
 import os
+import dbconn as db
 
 app = Flask(__name__)
 
@@ -42,8 +43,56 @@ def fileupload():
         print('저장성공')
         return redirect('/')
 
+@app.route('/bloglist',methods=['GET'])
+def bloglist():
+    conn = db.dbconn()
+    cursor = conn.cursor()
+    sql='''select * from blog'''
+    cursor.execute(sql)
+    rows = cursor.fetchall() 
+    print(rows)
+    return render_template('bloglist.html',data = rows)
 
-    return render_template('')
+@app.route('/blogform',methods=['GET','POST'])
+def blogform():
+    if request.method == 'GET':
+        return render_template('blogform.html')
+    else:
+        f = request.files['formFile']
+        path=os.path.dirname(__file__)+'/static/blog/img/'+f.filename
+        print(path)
+        f.save(path)
+        print('저장 성공!')
+        print(request.form)
+        conn = db.dbconn()
+        cursor = conn.cursor()
+        sql='''insert into blog values(?,?,?)'''
+        data = [request.form['title'], request.form['content'], '/static/blog/img/'+f.filename]
+        cursor.execute(sql,data)
+        conn.commit()
+        conn.close()
+        #글을 DB에 저장
+        return redirect('/bloglist')
+
+@app.route('/blog/<int:id>')
+def blogcontent(id):
+    conn = db.dbconn()
+    cursor = conn.cursor()
+    sql='''select * from blog where id=?'''
+    cursor.execute(sql,id)
+    rows = cursor.fetchone()
+    conn.close()
+    return render_template('blog_content.html', data=rows)
+
+@app.route('/blogdelete/<int:id>')
+def blogdelete(id):
+    conn = db.dbconn()
+    cursor = conn.cursor()
+    sql='''delete blog where id=?'''
+    cursor.execute(sql,id)
+    conn.commit()
+    conn.close()
+    return redirect('/bloglist')
 
 if __name__  ==  '__main__':
     app.run(debug=True, port=80)
